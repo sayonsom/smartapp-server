@@ -1,0 +1,182 @@
+Title: DR-SmartApp Integration — Spec Sheet  
+Version: 0.1  
+Date: <YYYY-MM-DD>  
+Author: <Your name / team>  
+
+============================
+1. Overview & Purpose
+============================
+
+1.1 Purpose  
+  Build a demonstration (“proof-of-concept”) integration that connects a utility demand-response (DR) signal — via OpenADR → backend VEN service — to home devices managed by SmartThings.  
+  Allow end users to opt-in, receive a notification on DR events, optionally opt-out, and if no opt-out, automatically adjust / shed load on selected smart devices (AC, plugs, fridge, etc). Provide a “virtual DR status device” inside SmartThings to show event status.
+
+1.2 Why This Matters  
+  - Demonstrate feasibility of DR automation using SmartThings as resource fleet.  
+  - Show real user flow: utility signal → user consent → automated load control.  
+  - Provide a tangible demo to stakeholders / management to validate concept before deeper investment.  
+
+1.3 Scope (in this version)  
+  Includes:  
+    • SmartApp (server-hosted) using SmartThings Node.js SDK (webhook)  
+    • Onboarding UI (device selection, consent)  
+    • Backend webhook/API for receiving DR events from utility simulator or VEN  
+    • Push/notification to user on DR event + basic opt-out window (30 s)  
+    • Automatic device control (switch off/on, set thermostat, etc) on participating devices  
+    • “Virtual DR status” device in SmartThings to reflect event state (pending / active / idle)  
+    • Simple state persistence (mapping user ↔ devices, status device, tokens) for demo  
+
+  Out of scope (for now):  
+    • Production-grade error handling, retries, logging, telemetry billing/reports  
+    • Complex load-shedding algorithm, multi-device scheduling, baseline calculations  
+    • User override management beyond opt-out prompt  
+    • Support for many different device types / compatibility edge cases  
+    • Formal SmartThings certification (only test/developer-mode)  
+
+============================
+2. Functional Specification (User- and System-Flows)
+============================
+
+2.1 Onboarding / Setup Flow  
+  • User installs SmartApp from SmartThings mobile app → goes through configuration wizard  
+  • Wizard lets user:  
+      – Link/register with DR service / utility (if required)  
+      – Select which SmartThings devices will participate (filters: switch / plug / thermostat / other load devices)  
+      – Confirm consent / agreement that DR events may control these devices  
+  • On save: backend stores mapping: user / location → device IDs + preferences  
+
+2.2 DR Event Flow  
+
+  Trigger: external DR event arrives (via POST to backend webhook, from utility simulator or VEN)  
+  Steps:  
+    1. Backend determines which users/locations are affected  
+    2. For each affected user:  
+        a. Send push-notification or alert via SmartThings to phone: “DR event starting — you have 30 seconds to opt out.”  
+        b. Mark “DR status = pending” in virtual DR-status device  
+        c. Wait for 30 seconds for user opt-out response  
+          ‣ If user opts out → set DR status = idle / aborted; do nothing  
+          ‣ If no response → proceed:  
+               – For each selected device: send SmartThings API commands to switch off / set energy-saving  
+               – Set DR status = active in virtual device  
+    3. After event end (either duration expired or manual end), optionally: restore devices to prior state, set DR status = idle  
+
+2.3 SmartThings UI Elements / User Interactions  
+
+  • In SmartThings App → under “Automations / Developer Apps”: user sees the DR-SmartApp to install / configure  
+  • During install → configuration wizard as above  
+  • After install → a “DR Status” tile / virtual device appears in user’s device list / dashboard: shows event status, maybe event type/level/time left  
+  • On DR event: phone push / alert to user; user may click / open app to opt out  
+
+2.4 Backend API / Interfaces  
+
+  • Webhook endpoint to receive DR events: e.g. `POST /dr-event` with payload:  
+      { eventId, level, duration, timestamp, metadata }  
+  • (Optional) Webhook/API for user opt-out requests (if opt-out via web or external UI)  
+  • Internal datastore mapping: user / location → SmartThings location ID, device IDs, DR-status device ID, access token, preferences  
+
+============================
+3. Architecture & Components
+============================
+
+3.1 Components  
+
+  - SmartApp server (Node.js + Express + SmartThings Node.js SDK) — handles setup, lifecycle, webhook receiver  
+  - Backend DR-handler module — receives DR signal, coordinates opt-out, commands device, updates status  
+  - Virtual DR-status device (SmartThings device) — created via SmartThings API / REST / CLI, to reflect DR events  
+  - Data store (demo-level): simple JSON or lightweight DB to persist mapping and state  
+  - External utility simulator or VEN service — sends DR events to backend webhook  
+
+3.2 Technology Stack  
+
+  - Node.js, Express.js  
+  - `@smartthings/smartapp` SDK :contentReference[oaicite:2]{index=2}  
+  - REST API (webhook) for DR event interface  
+  - Public HTTPS exposure for webhook (e.g. via ngrok) for testing / demo  
+  - SmartThings mobile app (Android or iOS) — test / developer mode  
+
+3.3 SmartThings Permissions & API Considerations  
+
+  - SmartApp must request scopes to control devices: read/write device state, execute commands :contentReference[oaicite:3]{index=3}  
+  - To create / manage virtual device (DR-status), may need device-profile or virtual-device creation permissions (or use CLI/Developer Workspace) — treat this as “best-effort” in demo  
+
+============================
+4. Non-Functional Requirements & Constraints  
+
+  - Demo mode only — performance, scalability not critical; volume low (single user / small number of devices)  
+  - Latency constraint: from DR event to device action should be within ~10–15 s + 30 s opt-out window — for demo realism  
+  - Security / privacy: store access tokens securely (in environment or secure store); avoid exposing tokens or user data in logs  
+  - Resilience: if SmartThings API call fails — log and optionally retry or mark as failed; but for demo, simple error logging is acceptable  
+  - Data persistence: simple JSON store (or lightweight DB) is fine for demo; in production would need robust database  
+
+============================
+5. Test / Acceptance Criteria  
+
+For the demo to be considered “working”:  
+
+  - [ ] SmartApp installs successfully on SmartThings app, user can select devices  
+  - [ ] SmartApp backend logs the selected device IDs and stores mapping  
+  - [ ] Virtual DR-status device appears in SmartThings device list (or UI) after install  
+  - [ ] Sending `POST /dr-event` triggers: push notification (or alert), DR-status changes to “pending”, then after 30 s changes to “active”, and selected devices change state (OFF / energy-saving)  
+  - [ ] If user opts out within 30 s (if this option built / tested), devices remain unchanged, DR-status resets to idle  
+  - [ ] After event end, devices and DR-status reset / are restored (if restore logic implemented)  
+  - [ ] Logging of all DR events with timestamps (for demo validation)  
+
+============================
+6. Risks, Assumptions & Open Questions  
+
+6.1 Risks / Known Uncertainties  
+
+  - The ability to reliably send push-notifications / alerts via SmartThings API in webhook-based SmartApp is not formally documented / may vary across devices/platforms.  
+  - Creating virtual devices via API may fail or require manual steps / special scopes.  
+  - User may miss notification (phone locked, notifications disabled), making 30-s opt-out unreliable — in demo this is acceptable, in real product it is a design risk.  
+  - Device capabilities vary — some devices may not support the commands (e.g. setpoint change, or may report inaccurate state).  
+
+6.2 Assumptions  
+
+  - Test environment / single-user demo — not many devices or heavy load.  
+  - SmartThings account & test devices exist.  
+  - User grants permissions to SmartApp to manage devices.  
+  - Utility simulator / VEN service can call backend webhook reliably (internet, HTTPS).  
+
+6.3 Open Questions / To Decide Later  
+
+  - Should the opt-out be via SmartThings notification+tap, or via a custom web-UI or virtual “opt-out” switch? Which gives more reliability for demo?  
+  - Should we implement “state restore” (after DR event end) — if yes, need to store prior state before changing devices.  
+  - What kinds of devices to support initially? (Switches / plugs / thermostats / others)  
+  - How to handle user’s manual override (if they manually change device during DR event) — in demo maybe ignore; in product need strategy.  
+  - What data to log / show in DR-status device (event ID, level, time remaining, estimated kW saved, etc)  
+
+============================
+7. Milestones / Implementation Plan  
+
+  1. Setup basic SmartApp + webhook + device-selection config (onboarding) — 1 day  
+  2. Basic backend + external trigger endpoint + simple device control (on/off) — 1 day  
+  3. Extend with virtual DR-status device creation, restore logic, basic state store — 1–2 days  
+  4. Add push/notification + opt-out logic + backend timer — 1 day (best-effort)  
+  5. End-to-end test with simulator, verify flows, log results — 1 day  
+  6. Prepare demo script / plan + fallback handling (in case push/notification fails) — 1 day  
+
+============================
+8. Future / Production-grade Considerations (outside demo)  
+
+  - Replace simple file-based state store with robust database (e.g. Postgres, DynamoDB)  
+  - Implement richer load-shedding logic (prioritization, partial shed, fail-safe, user override detection)  
+  - Add telemetry / usage reporting, energy savings estimation, user consent record, audit trail  
+  - Handle scale (multiple homes / users), API rate limits, retries, error handling  
+  - Security hardening (token encryption, secrets management, secure webhooks, webhook validation)  
+  - Consider full integration path: maybe use Schema Cloud Connector / device-profile / approved virtual-device — makes integration more robust than SmartApp + webhook  
+
+============================
+9. Glossary / Definitions  
+
+  - DR: Demand Response — signal from utility to reduce load / shift demand  
+  - VTN: Virtual Top Node (utility / DR management system)  
+  - VEN: Virtual End Node (your backend service)  
+  - SmartApp: a third-party (or custom) application that integrates with SmartThings cloud to extend automation. :contentReference[oaicite:4]{index=4}  
+  - Managed Device: a SmartThings-registered device (plug, switch, thermostat, etc) chosen by the user to participate in DR events  
+  - DR-status device: a virtual device inside SmartThings representing current DR event status (pending / active / idle)  
+
+============================
+Appendix / References  
+- SmartThings SmartApp model & lifecycle documentation. :contentReference[oaicite:5]{index=5}  
+- General principles of writing technical specifications / software specification documents. :contentReference[oaicite:6]{index=6}  

@@ -1,0 +1,10 @@
+{
+  "drStatusDeviceId": "virtual-dr-device-id-1765345194571",
+  "managedDevices": [
+    {
+      "deviceId": "bce6eb37-e06f-e477-1c90-46f165acb1f7",
+      "componentId": "main"
+    }
+  ],
+  "token": "b552d97d-7dd9-4f0d-9a31-55de52e837c8"
+}

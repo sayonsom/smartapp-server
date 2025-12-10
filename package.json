@@ -1,0 +1,20 @@
+{
+  "name": "smartapp-demo",
+  "version": "0.1.0",
+  "description": "Minimal SmartThings SmartApp + webhook demo for DR events",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.948.0",
+    "@aws-sdk/lib-dynamodb": "^3.948.0",
+    "@smartthings/smartapp": "^2.0.0",
+    "axios": "^1.13.2",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.18.2",
+    "serverless-http": "^4.0.0"
+  }
+}

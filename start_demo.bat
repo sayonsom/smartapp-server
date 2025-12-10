@@ -1,0 +1,3 @@
+@echo off
+echo Starting DR Demo Dashboard...
+start frontend/index.html
