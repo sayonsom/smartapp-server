@@ -77,6 +77,8 @@ else
 fi
 
 # Update Config if exists but timeout may be old
+echo "  Waiting for code update to propagate..."
+sleep 5
 aws lambda update-function-configuration --function-name $APP_NAME --timeout 60 --region $REGION >/dev/null
 
 # 5. Function URL (Public Access)

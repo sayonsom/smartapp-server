@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,6 +15,7 @@
             --danger-color: #ef4444;
             --success-color: #22c55e;
         }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: var(--bg-color);
@@ -24,17 +26,25 @@
             justify-content: center;
             min-height: 100vh;
         }
+
         .container {
             max-width: 800px;
             width: 100%;
         }
+
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 30px;
         }
-        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
         .status-badge {
             background-color: var(--success-color);
             color: #000;
@@ -44,6 +54,7 @@
             font-weight: 700;
             text-transform: uppercase;
         }
+
         .card {
             background-color: var(--card-bg);
             border-radius: 12px;
@@ -51,8 +62,18 @@
             margin-bottom: 24px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        .input-group { margin-bottom: 20px; }
-        label { display: block; color: var(--text-secondary); margin-bottom: 8px; font-size: 14px; }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
         input[type="text"] {
             width: 100%;
             background-color: #0f172a;
@@ -63,9 +84,17 @@
             font-size: 16px;
             box-sizing: border-box;
         }
-        .row { display: flex; gap: 16px; margin-bottom: 20px; }
-        .col { flex: 1; }
-        
+
+        .row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .col {
+            flex: 1;
+        }
+
         button {
             width: 100%;
             padding: 16px;
@@ -76,9 +105,21 @@
             cursor: pointer;
             transition: opacity 0.2s;
         }
-        button:hover { opacity: 0.9; }
-        .btn-dispatch { background-color: var(--danger-color); color: white; }
-        .btn-check { background-color: var(--accent-color); color: white; margin-top: 10px;}
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .btn-dispatch {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn-check {
+            background-color: var(--accent-color);
+            color: white;
+            margin-top: 10px;
+        }
 
         .log-panel {
             background-color: #000;
@@ -90,109 +131,127 @@
             overflow-y: auto;
             font-size: 13px;
         }
-        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #333; padding-bottom: 2px;}
-        .log-time { color: #666; margin-right: 8px; }
+
+        .log-entry {
+            margin-bottom: 4px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 2px;
+        }
+
+        .log-time {
+            color: #666;
+            margin-right: 8px;
+        }
     </style>
 </head>
+
 <body>
 
-<div class="container">
-    <div class="header">
-        <h1>⚡ Utility Command Center</h1>
-        <span class="status-badge" id="gridStatus">GRID NORMAL</span>
-    </div>
-
-    <div class="card">
-        <div class="input-group">
-            <label>Backend API URL (Lambda URL)</label>
-            <input type="text" id="apiUrl" placeholder="https://..." value="https://r7cbbgbv254e4fipogmaqt4pqi0gadvn.lambda-url.us-east-1.on.aws/">
+    <div class="container">
+        <div class="header">
+            <h1>⚡ Utility Command Center</h1>
+            <span class="status-badge" id="gridStatus">GRID NORMAL</span>
         </div>
-        <button class="btn-check" onclick="checkDevices()">🔄 Connect & Check Devices</button>
-    </div>
 
-    <div class="card">
-        <h2>Dispatch Event</h2>
-        <div class="row">
-            <div class="col">
-                <label>Event ID</label>
-                <input type="text" id="eventId" value="DR-2025-001">
+        <div class="card">
+            <div class="input-group">
+                <label>Backend API URL (Lambda URL)</label>
+                <input type="text" id="apiUrl" class="form-control" placeholder="http://localhost:8080"
+                    value="https://r7cbbgbv254e4fipogmaqt4pqi0gadvn.lambda-url.us-east-1.on.aws/">
             </div>
-            <div class="col">
-                <label>Duration (Seconds)</label>
-                <input type="text" id="duration" value="10">
+            <button class="btn-check" onclick="checkDevices()">🔄 Connect & Check Devices</button>
+        </div>
+
+        <div class="card">
+            <h2>Dispatch Event</h2>
+            <div class="row">
+                <div class="col">
+                    <label>Event ID</label>
+                    <input type="text" id="eventId" value="DR-2025-001">
+                </div>
+                <div class="col">
+                    <label>Duration (Seconds)</label>
+                    <input type="text" id="duration" value="10">
+                </div>
+            </div>
+            <button class="btn-dispatch" onclick="triggerDr()">🚨 DISPATCH LOAD SHED</button>
+        </div>
+
+        <div class="card">
+            <label>System Logs</label>
+            <div class="log-panel" id="logs">
+                <div class="log-entry">System ready...</div>
             </div>
         </div>
-        <button class="btn-dispatch" onclick="triggerDr()">🚨 DISPATCH LOAD SHED</button>
     </div>
 
-    <div class="card">
-        <label>System Logs</label>
-        <div class="log-panel" id="logs">
-            <div class="log-entry">System ready...</div>
-        </div>
-    </div>
-</div>
-
-<script>
-    function log(msg) {
-        const panel = document.getElementById('logs');
-        const entry = document.createElement('div');
-        entry.className = 'log-entry';
-        const time = new Date().toLocaleTimeString();
-        entry.innerHTML = `<span class="log-time">[${time}]</span> ${msg}`;
-        panel.prepend(entry);
-    }
-
-    async function checkDevices() {
-        const url = document.getElementById('apiUrl').value.replace(/\/$/, "");
-        log(`Connecting to ${url}...`);
-        try {
-            const res = await fetch(`${url}/devices`);
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
-            log(`✅ Connected! Found ${data.count} devices.`);
-            data.devices.forEach(d => log(`   - ${d.label} (${d.switch})`));
-        } catch (e) {
-            log(`❌ Connection Failed: ${e.message}`);
+    <script>
+        function log(msg) {
+            const panel = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${msg}`;
+            panel.prepend(entry);
         }
-    }
 
-    async function triggerDr() {
-        const url = document.getElementById('apiUrl').value.replace(/\/$/, "");
-        const eventId = document.getElementById('eventId').value;
-        const duration = parseInt(document.getElementById('duration').value);
-
-        log(`🚀 Dispatching DR Event ${eventId}...`);
-        
-        try {
-            const res = await fetch(`${url}/dr-event`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    eventId: eventId,
-                    level: 'HIGH',
-                    duration: duration
-                })
-            });
-            const data = await res.json();
-            log(`✅ Signal Sent! Response: ${JSON.stringify(data.result)}`);
-            log(`⏳ Devices turning OFF in 30s...`);
-            
-            // Visual countdown simulation
-            document.getElementById('gridStatus').style.backgroundColor = '#ef4444';
-            document.getElementById('gridStatus').innerText = 'GRID STRAIN';
-            
-            setTimeout(() => {
-                 document.getElementById('gridStatus').style.backgroundColor = '#22c55e';
-                 document.getElementById('gridStatus').innerText = 'GRID NORMAL';
-                 log(`🔄 Event Concluded. Devices restoring...`);
-            }, (30 + duration) * 1000);
-
-        } catch (e) {
-            log(`❌ Dispatch Error: ${e.message}`);
+        async function checkDevices() {
+            const url = document.getElementById('apiUrl').value.replace(/\/$/, "");
+            log(`Connecting to ${url}...`);
+            try {
+                const res = await fetch(`${url}/devices`);
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+                log(`✅ Connected! Found ${data.count} devices.`);
+                data.devices.forEach(d => {
+                    let statusStr = `   - ${d.label} (${d.switch})`;
+                    const powerText = d.power !== undefined ? ` [${d.power} W]` : '';
+                    const energyText = d.energy !== undefined ? ` (Total: ${d.energy} kWh)` : '';
+                    statusStr += `${powerText}${energyText}`;
+                    log(statusStr);
+                });
+            } catch (e) {
+                log(`❌ Connection Failed: ${e.message}`);
+            }
         }
-    }
-</script>
+
+        async function triggerDr() {
+            const url = document.getElementById('apiUrl').value.replace(/\/$/, "");
+            const eventId = document.getElementById('eventId').value;
+            const duration = parseInt(document.getElementById('duration').value);
+
+            log(`🚀 Dispatching DR Event ${eventId}...`);
+
+            try {
+                const res = await fetch(`${url}/dr-event`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        eventId: eventId,
+                        level: 'HIGH',
+                        duration: duration
+                    })
+                });
+                const data = await res.json();
+                log(`✅ Signal Sent! Response: ${JSON.stringify(data.result)}`);
+                log(`⏳ Devices turning OFF in 30s...`);
+
+                // Visual countdown simulation
+                document.getElementById('gridStatus').style.backgroundColor = '#ef4444';
+                document.getElementById('gridStatus').innerText = 'GRID STRAIN';
+
+                setTimeout(() => {
+                    document.getElementById('gridStatus').style.backgroundColor = '#22c55e';
+                    document.getElementById('gridStatus').innerText = 'GRID NORMAL';
+                    log(`🔄 Event Concluded. Devices restoring...`);
+                }, (30 + duration) * 1000);
+
+            } catch (e) {
+                log(`❌ Dispatch Error: ${e.message}`);
+            }
+        }
+    </script>
 
 </body>
+
 </html>

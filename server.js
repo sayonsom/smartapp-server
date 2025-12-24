@@ -14,7 +14,36 @@ const smartapp = new SmartApp()
                 .deviceSetting('managedSwitches')
                 .capabilities(['switch'])
                 .permissions('rx')
-                .required(true);
+                .required(false)
+                .name('Category: Switches (Lights/Plugs)');
+
+            section
+                .deviceSetting('managedPower')
+                .capabilities(['powerMeter'])
+                .permissions('rx')
+                .required(false)
+                .name('Category: Power Meters');
+
+            section
+                .deviceSetting('managedRef')
+                .capabilities(['refrigeration'])
+                .permissions('rx')
+                .required(false)
+                .name('Category: Fridges');
+
+            section
+                .deviceSetting('managedWash')
+                .capabilities(['washerOperatingState'])
+                .permissions('rx')
+                .required(false)
+                .name('Category: Washers');
+
+            section
+                .deviceSetting('managedOthers')
+                .capabilities(['refresh'])
+                .permissions('rx')
+                .required(false)
+                .name('Category: All Other Devices (Refreshable)');
         });
     })
     .updated(async (context, updateData) => {
@@ -28,8 +57,19 @@ const smartapp = new SmartApp()
             const drDeviceId = await createVirtualDevice(context.authToken, locationId);
             console.log('Created DR-status device with ID', drDeviceId);
             store.drStatusDeviceId = drDeviceId;
-            // store managed devices
-            store.managedDevices = context.config.managedSwitches.map(d => d.deviceConfig);
+
+            // store managed devices - MERGE all lists
+            const switches = context.config.managedSwitches ? context.config.managedSwitches.map(d => d.deviceConfig) : [];
+            const power = context.config.managedPower ? context.config.managedPower.map(d => d.deviceConfig) : [];
+            const refs = context.config.managedRef ? context.config.managedRef.map(d => d.deviceConfig) : [];
+            const wash = context.config.managedWash ? context.config.managedWash.map(d => d.deviceConfig) : [];
+            const others = context.config.managedOthers ? context.config.managedOthers.map(d => d.deviceConfig) : [];
+
+            // Dedup by deviceId
+            const allDevices = [...switches, ...power, ...refs, ...wash, ...others];
+            const uniqueDevices = Array.from(new Map(allDevices.map(item => [item.deviceId, item])).values());
+
+            store.managedDevices = uniqueDevices;
             store.locationId = locationId;
             store.token = context.authToken;
             await saveStore('default', store);
@@ -123,15 +163,86 @@ app.get('/devices', async (req, res) => {
                     headers: { 'Authorization': `Bearer ${store.token}` }
                 });
 
+                // Find main component for switch/state (usually safe)
+                const mainComp = response.data.components.main || {};
+
+                // Helper to search ALL components for a capability
+                const findCapability = (comps, capName) => {
+                    for (const cName in comps) {
+                        if (comps[cName][capName]) return comps[cName][capName];
+                    }
+                    return null;
+                };
+
+                const powerCap = findCapability(response.data.components, 'powerMeter');
+                const energyCap = findCapability(response.data.components, 'energyMeter');
+
+                const powerConsumptionCap = findCapability(response.data.components, 'powerConsumptionReport');
+
+                // Check switch/state
+                let isOff = false;
+                let switchState = 'N/A';
+
+                if (mainComp.switch && mainComp.switch.switch && mainComp.switch.switch.value) {
+                    switchState = mainComp.switch.switch.value;
+                    if (switchState === 'off') isOff = true;
+                }
+
+                // Washer state handling
+                if (mainComp.washerOperatingState && mainComp.washerOperatingState.machineState) {
+                    const washerState = mainComp.washerOperatingState.machineState.value;
+                    if (['run', 'running', 'wash', 'rinse', 'spin'].includes(washerState)) {
+                        isOff = false;
+                        switchState = washerState;
+                    }
+                }
+
+                let power = 0;
+                let energy = 0;
+
+                // Priority 1: Standard Capabilities
+                if (powerCap && powerCap.power) {
+                    power = powerCap.power.value;
+                }
+                if (energyCap && energyCap.energy) {
+                    energy = energyCap.energy.value;
+                }
+
+                // Priority 2: Samsung OCF "powerConsumptionReport" (overrides if present and standard was missing/zero)
+                // structure: powerConsumption: { value: { power: 123, energy: 456, ... } }
+                if (powerConsumptionCap && powerConsumptionCap.powerConsumption && powerConsumptionCap.powerConsumption.value) {
+                    const pVal = powerConsumptionCap.powerConsumption.value;
+                    if (pVal.power !== undefined) power = pVal.power;
+                    if (pVal.energy !== undefined) energy = pVal.energy;
+                }
+
+                // User Rule: "if device is off .. power consumption is 0"
+                if (isOff) {
+                    power = 0;
+                }
+
+                // DEBUG: Map all components to their list of capabilities
+                const debugFull = {};
+                if (response.data.components) {
+                    for (const [cName, cObj] of Object.entries(response.data.components)) {
+                        debugFull[cName] = Object.keys(cObj);
+                    }
+                }
+
                 deviceDetails.push({
                     deviceId: d.deviceId,
                     label: infoResponse.data.label || infoResponse.data.name,
-                    switch: response.data.components.main.switch.switch.value
+                    switch: switchState,
+                    power: power,
+                    energy: energy,
+                    // DEBUG: Show FULL capabilities to find where power is hiding
+                    debugCapabilities: debugFull
                 });
             } catch (err) {
                 deviceDetails.push({ deviceId: d.deviceId, error: err.message });
             }
         }
+
         res.json({ count: deviceDetails.length, devices: deviceDetails });
     } catch (e) {
         res.status(500).json({ error: e.toString() });
